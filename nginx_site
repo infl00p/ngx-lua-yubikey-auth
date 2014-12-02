@@ -1,0 +1,43 @@
+server {
+    listen 80;
+    server_name www.example.com;
+
+    rewrite ^ https://$server_name$request_uri? permanent;
+}
+
+server {
+    listen  443 ssl;
+
+    server_name www.example.com;
+
+    access_log /var/log/nginx/ssl-error.log;
+
+    #lua_code_cache off;
+
+    set $serversecret 'thisisatest';
+    set $cookietimeout '3200';
+    # set $basedomain '.example.com';
+    #set $SITEDEBUG on;
+    
+    location / {
+        access_by_lua_file "/etc/nginx/apps/ngx-lua-yubikey-auth/yubikey_access.lua";
+
+        proxy_pass         http://backendserver/;
+        proxy_redirect     off;
+
+        proxy_set_header   Host             $host;
+        proxy_set_header   X-Real-IP        $remote_addr;
+    }
+
+    location /otpauth {
+        content_by_lua_file "/etc/nginx/apps/ngx-lua-yubikey-auth/yubikey_settoken.lua";
+    }
+
+    location /yubiauth {
+        allow 127.0.0.1;
+        deny all;
+        proxy_pass         http://yubikeyserver:9000/wsapi/2.0/verify;
+        proxy_redirect     off;
+    }
+
+}
